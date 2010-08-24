@@ -1,4 +1,4 @@
-package com.riaspace.nativeUpdater
+package com.riaspace.nativeApplicationUpdater
 {
 	import air.update.events.DownloadErrorEvent;
 	import air.update.events.StatusUpdateErrorEvent;
