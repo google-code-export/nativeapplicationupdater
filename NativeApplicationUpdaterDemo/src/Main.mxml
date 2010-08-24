@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					   xmlns:s="library://ns.adobe.com/flex/spark" 
+					   xmlns:mx="library://ns.adobe.com/flex/mx"
+					   xmlns:updater="http://updater.riaspace.com/"
+					   creationComplete="windowedApplication_creationCompleteHandler(event)">
+
+	<fx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			import mx.events.FlexEvent;
+			
+			public function isNewerFunction(currentVersion:String, updateVersion:String):Boolean
+			{
+				return true;
+			}
+
+			protected function updater_errorHandler(event:ErrorEvent):void
+			{
+				Alert.show(event.text);
+			}
+
+			protected function windowedApplication_creationCompleteHandler(event:FlexEvent):void
+			{
+				updater.initialize();
+			}
+		]]>
+	</fx:Script>
+
+	<fx:Declarations>
+		<updater:NativeApplicationUpdater id="updater" 
+					updateURL="http://riaspace.com/native-application-updater/update.xml" 
+					isNewerVersionFunction="{isNewerFunction}"
+					
+					downloadStart="prgBar.visible = true"
+					initialized="btnCheckNow.enabled = true"
+					
+					error="updater_errorHandler(event)"
+					downloadError="updater_errorHandler(event)"
+					updateError="updater_errorHandler(event)"
+					/>
+	</fx:Declarations>
+	
+	<s:VGroup top="10" left="10" gap="10">
+		<s:Button id="btnCheckNow" enabled="false" label="Check now" click="updater.checkNow()" />
+		<s:HGroup verticalAlign="middle">
+			<s:Label text="Current version: {updater.currentVersion}" />
+			<s:Label text="Update version: {updater.updateVersion}" />
+		</s:HGroup>
+		<s:HGroup verticalAlign="middle">
+			<s:Label text="Updater state: {updater.currentState}" />
+			<s:Label text="Installer type: {updater.installerType}" />
+		</s:HGroup>
+	</s:VGroup>
+	
+	<mx:ProgressBar id="prgBar" label="Downloading update %3%" source="{updater}" 
+					visible="false" horizontalCenter="0" verticalCenter="0" />
+	
+</s:WindowedApplication>
