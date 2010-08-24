@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					   xmlns:s="library://ns.adobe.com/flex/spark" 
+					   xmlns:mx="library://ns.adobe.com/flex/mx" xmlns:updater="http://updater.riaspace.com/"
+					   creationComplete="updater.initialize()">
+	<fx:Declarations>
+		<updater:NativeApplicationUpdater id="updater" 
+			updateURL="http://riaspace.com/native-application-updater/update.xml" />
+	</fx:Declarations>
+	
+	<s:Label text="You are updated to version: {updater.currentVersion}" horizontalCenter="0" verticalCenter="0" />
+	
+</s:WindowedApplication>
