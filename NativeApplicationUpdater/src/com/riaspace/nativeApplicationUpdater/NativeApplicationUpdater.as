@@ -24,6 +24,9 @@ package com.riaspace.nativeApplicationUpdater
 	import flash.system.Capabilities;
 	import flash.utils.ByteArray;
 	import flash.utils.setTimeout;
+	
+	import mx.utils.StringUtil;
+	import com.riaspace.nativeApplicationUpdater.utils.HdiutilHelper;
 
 	[Event(name="initialized", type="air.update.events.UpdateEvent")]
 	[Event(name="checkForUpdate", type="air.update.events.UpdateEvent")]
@@ -38,7 +41,9 @@ package com.riaspace.nativeApplicationUpdater
 	public class NativeApplicationUpdater extends EventDispatcher
 	{
 		
-		namespace UPDATE_XMLNS = "http://ns.riaspace.com/air/framework/update/description/1.0";
+		namespace UPDATE_XMLNS_1_0 = "http://ns.riaspace.com/air/framework/update/description/1.0";
+		
+		namespace UPDATE_XMLNS_1_1 = "http://ns.riaspace.com/air/framework/update/description/1.1";
 		
 		/**
 		 * The updater has not been initialized.
@@ -94,6 +99,10 @@ package com.riaspace.nativeApplicationUpdater
 		
 		protected var _updateVersion:String;
 		
+		protected var _updatePackageURL:String;
+		
+		protected var _updateDescription:String;
+
 		protected var _currentVersion:String;
 		
 		protected var _downloadedFile:File;
@@ -147,7 +156,7 @@ package com.riaspace.nativeApplicationUpdater
 				}
 				else
 				{
-					dispatchEvent(new ErrorEvent(ErrorEvent.ERROR, false, false, "Not supported os type!", 9000));
+					dispatchEvent(new ErrorEvent(ErrorEvent.ERROR, false, false, "Not supported os type!", UpdaterErrorCodes.ERROR_9000));
 				}
 				
 				currentState = READY;
@@ -205,18 +214,9 @@ package com.riaspace.nativeApplicationUpdater
 				{
 					dispatchEvent(new StatusUpdateErrorEvent(StatusUpdateErrorEvent.UPDATE_ERROR, false, false, 
 						"Error downloading update descriptor file: " + error.message, 
-						9002, error.errorID));
+						UpdaterErrorCodes.ERROR_9002, error.errorID));
 				}
 			}
-		}
-
-		protected function updateDescriptorLoader_ioErrorHandler(event:IOErrorEvent):void
-		{
-			updateDescriptorLoader.removeEventListener(IOErrorEvent.IO_ERROR, updateDescriptorLoader_ioErrorHandler); 
-			
-			dispatchEvent(new StatusUpdateErrorEvent(StatusUpdateErrorEvent.UPDATE_ERROR, false, false, 
-				"IO Error downloading update descriptor file: " + event.text,
-				9003, event.errorID));
 		}
 
 		protected function updateDescriptorLoader_completeHandler(event:Event):void
@@ -224,15 +224,46 @@ package com.riaspace.nativeApplicationUpdater
 			updateDescriptorLoader.removeEventListener(Event.COMPLETE, updateDescriptorLoader_completeHandler);
 			
 			updateDescriptor = new XML(updateDescriptorLoader.data);
-			updateVersion = updateDescriptor.UPDATE_XMLNS::version;
-
-			currentState = AVAILABLE;
 			
+			if (updateDescriptor.namespace() == UPDATE_XMLNS_1_0)
+			{
+				updateVersion = updateDescriptor.UPDATE_XMLNS_1_0::version;
+				updateDescription = updateDescriptor.UPDATE_XMLNS_1_0::description;
+				updatePackageURL = updateDescriptor.UPDATE_XMLNS_1_0::urls.UPDATE_XMLNS_1_1::[installerType];
+			}
+			else
+			{
+				var typeXml:XMLList = updateDescriptor.UPDATE_XMLNS_1_1::[installerType];
+				if (typeXml.length() > 0)
+				{
+					updateVersion = typeXml.UPDATE_XMLNS_1_1::version;
+					updateDescription = StringUtil.trim(typeXml.UPDATE_XMLNS_1_1::description);
+					updatePackageURL = typeXml.UPDATE_XMLNS_1_1::url;
+				}
+			}
+
+			if (!updateVersion || !updatePackageURL)
+			{
+				dispatchEvent(new StatusUpdateErrorEvent(StatusUpdateErrorEvent.UPDATE_ERROR, false, false, 
+					"Update package is not defined for current installerType: " + installerType, UpdaterErrorCodes.ERROR_9001));
+				return;
+			}
+
+			currentState = AVAILABLE;			
 			dispatchEvent(new StatusUpdateEvent(
 				StatusUpdateEvent.UPDATE_STATUS, false, true, 
 				isNewerVersionFunction.call(this, currentVersion, updateVersion), updateVersion)); // TODO: handle last event param with details (description)
 		}
 		
+		protected function updateDescriptorLoader_ioErrorHandler(event:IOErrorEvent):void
+		{
+			updateDescriptorLoader.removeEventListener(IOErrorEvent.IO_ERROR, updateDescriptorLoader_ioErrorHandler); 
+			
+			dispatchEvent(new StatusUpdateErrorEvent(StatusUpdateErrorEvent.UPDATE_ERROR, false, false, 
+				"IO Error downloading update descriptor file: " + event.text,
+				UpdaterErrorCodes.ERROR_9003, event.errorID));
+		}
+
 		/**
 		 * ------------------------------------ DOWNLOAD UPDATE SECTION -------------------------------------
 		 */
@@ -252,16 +283,15 @@ package com.riaspace.nativeApplicationUpdater
 				urlStream.addEventListener(ProgressEvent.PROGRESS, urlStream_progressHandler);
 				urlStream.addEventListener(Event.COMPLETE, urlStream_completeHandler);
 				urlStream.addEventListener(IOErrorEvent.IO_ERROR, urlStream_ioErrorHandler);
-				
+
 				try
 				{
-					use namespace UPDATE_XMLNS;
-					urlStream.load(new URLRequest(updateDescriptor.urls[installerType]));
+					urlStream.load(new URLRequest(updatePackageURL));
 				}
 				catch(error:Error)
 				{
 					dispatchEvent(new DownloadErrorEvent(DownloadErrorEvent.DOWNLOAD_ERROR, false, false, 
-						"Error downloading update file: " + error.message, 9004, error.message));
+						"Error downloading update file: " + error.message, UpdaterErrorCodes.ERROR_9004, error.message));
 				}
 			}
 		}
@@ -296,7 +326,7 @@ package com.riaspace.nativeApplicationUpdater
 		protected function urlStream_ioErrorHandler(event:IOErrorEvent):void
 		{
 			dispatchEvent(new DownloadErrorEvent(DownloadErrorEvent.DOWNLOAD_ERROR, false, false, 
-				"Error downloading update file: " + event.text, 9005, event.errorID));
+				"Error downloading update file: " + event.text, UpdaterErrorCodes.ERROR_9005, event.errorID));
 		}
 		
 		/**
@@ -309,25 +339,41 @@ package com.riaspace.nativeApplicationUpdater
 			{
 				if (os.indexOf("win") > -1)
 				{
-					installFromFile(_downloadedFile);
+					installFromFile(downloadedFile);
 				}
 				else if (os.indexOf("mac") > -1)
 				{
-					StorageVolumeInfo.storageVolumeInfo.addEventListener(StorageVolumeChangeEvent.STORAGE_VOLUME_MOUNT, onStorageVolumeMount);
-					_downloadedFile.openWithDefaultApplication();
+					var hdiutilHelper:HdiutilHelper = new HdiutilHelper(downloadedFile);
+					hdiutilHelper.addEventListener(Event.COMPLETE, hdiutilHelper_completeHandler);
+					hdiutilHelper.addEventListener(ErrorEvent.ERROR, hdiutilHelper_errorHandler);
+					hdiutilHelper.attach();
 				}
 				else if (os.indexOf("linux") > -1)
 				{
-					installFromFile(_downloadedFile);
+					installFromFile(downloadedFile);
 				}
 			}
 		}
 
-		protected function onStorageVolumeMount(event:StorageVolumeChangeEvent):void
+		private function hdiutilHelper_errorHandler(event:ErrorEvent):void
 		{
-			StorageVolumeInfo.storageVolumeInfo.removeEventListener(StorageVolumeChangeEvent.STORAGE_VOLUME_MOUNT, onStorageVolumeMount);
+			var hdiutilHelper:HdiutilHelper = event.target as HdiutilHelper;
+			hdiutilHelper.removeEventListener(Event.COMPLETE, hdiutilHelper_completeHandler);
+			hdiutilHelper.removeEventListener(ErrorEvent.ERROR, hdiutilHelper_errorHandler);
 			
-			var files:Array = event.rootDirectory.getDirectoryListing();
+			dispatchEvent(new ErrorEvent(ErrorEvent.ERROR, false, false, 
+				"Error attaching dmg file!", UpdaterErrorCodes.ERROR_9008));
+		}
+
+		private function hdiutilHelper_completeHandler(event:Event):void
+		{
+			var hdiutilHelper:HdiutilHelper = event.target as HdiutilHelper;
+			hdiutilHelper.removeEventListener(Event.COMPLETE, hdiutilHelper_completeHandler);
+			hdiutilHelper.removeEventListener(ErrorEvent.ERROR, hdiutilHelper_errorHandler);
+			
+			var attachedDmg:File = new File(hdiutilHelper.mountPoint);
+			var files:Array = attachedDmg.getDirectoryListing();
+			
 			if (files.length == 1)
 			{
 				var installFileFolder:File = File(files[0]).resolvePath("Contents/MacOS");
@@ -337,21 +383,21 @@ package com.riaspace.nativeApplicationUpdater
 					installFromFile(installFiles[0]);
 				else
 					dispatchEvent(new ErrorEvent(ErrorEvent.ERROR, false, false, 
-						"Contents/MacOS folder should contain only 1 install file!", 9006));
+						"Contents/MacOS folder should contain only 1 install file!", UpdaterErrorCodes.ERROR_9006));
 			}
 			else
 			{
 				dispatchEvent(new ErrorEvent(ErrorEvent.ERROR, false, false, 
-					"Mounted volume should contain only 1 install file!", 9007));
+					"Mounted volume should contain only 1 install file!", UpdaterErrorCodes.ERROR_9007));
 			}
 		}
 		
 		protected function installFromFile(updateFile:File):void
 		{
-			var beforeInstllEvent:UpdateEvent = new UpdateEvent(UpdateEvent.BEFORE_INSTALL, false, true);
-			dispatchEvent(beforeInstllEvent);
+			var beforeInstallEvent:UpdateEvent = new UpdateEvent(UpdateEvent.BEFORE_INSTALL, false, true);
+			dispatchEvent(beforeInstallEvent);
 			
-			if (!beforeInstllEvent.isDefaultPrevented())
+			if (!beforeInstallEvent.isDefaultPrevented())
 			{
 				currentState = INSTALLING;
 				
@@ -452,5 +498,26 @@ package com.riaspace.nativeApplicationUpdater
 			_installerType = value;
 		}
 
+		[Bindable]
+		public function get updatePackageURL():String
+		{
+			return _updatePackageURL;
+		}
+		
+		protected function set updatePackageURL(value:String):void
+		{
+			_updatePackageURL = value;
+		}
+		
+		[Bindable]
+		public function get updateDescription():String
+		{
+			return _updateDescription;
+		}
+		
+		protected function set updateDescription(value:String):void
+		{
+			_updateDescription = value;
+		}
 	}
 }

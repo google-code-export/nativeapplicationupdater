@@ -29,7 +29,7 @@
 
 	<fx:Declarations>
 		<updater:NativeApplicationUpdater id="updater" 
-					updateURL="http://riaspace.com/native-application-updater/update.xml" 
+					updateURL="http://riaspace.com/native-application-updater/update-1.1.xml" 
 					isNewerVersionFunction="{isNewerFunction}"
 					
 					downloadStart="prgBar.visible = true"
