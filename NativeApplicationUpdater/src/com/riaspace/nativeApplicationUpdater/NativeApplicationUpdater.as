@@ -5,6 +5,8 @@ package com.riaspace.nativeApplicationUpdater
 	import air.update.events.StatusUpdateEvent;
 	import air.update.events.UpdateEvent;
 	
+	import com.riaspace.nativeApplicationUpdater.utils.HdiutilHelper;
+	
 	import flash.desktop.NativeApplication;
 	import flash.desktop.NativeProcess;
 	import flash.desktop.NativeProcessStartupInfo;
@@ -13,20 +15,15 @@ package com.riaspace.nativeApplicationUpdater
 	import flash.events.EventDispatcher;
 	import flash.events.IOErrorEvent;
 	import flash.events.ProgressEvent;
-	import flash.events.StorageVolumeChangeEvent;
 	import flash.filesystem.File;
 	import flash.filesystem.FileMode;
 	import flash.filesystem.FileStream;
-	import flash.filesystem.StorageVolumeInfo;
 	import flash.net.URLLoader;
 	import flash.net.URLRequest;
 	import flash.net.URLStream;
 	import flash.system.Capabilities;
 	import flash.utils.ByteArray;
 	import flash.utils.setTimeout;
-	
-	import mx.utils.StringUtil;
-	import com.riaspace.nativeApplicationUpdater.utils.HdiutilHelper;
 
 	[Event(name="initialized", type="air.update.events.UpdateEvent")]
 	[Event(name="checkForUpdate", type="air.update.events.UpdateEvent")]
@@ -237,7 +234,7 @@ package com.riaspace.nativeApplicationUpdater
 				if (typeXml.length() > 0)
 				{
 					updateVersion = typeXml.UPDATE_XMLNS_1_1::version;
-					updateDescription = StringUtil.trim(typeXml.UPDATE_XMLNS_1_1::description);
+					updateDescription = typeXml.UPDATE_XMLNS_1_1::description;
 					updatePackageURL = typeXml.UPDATE_XMLNS_1_1::url;
 				}
 			}
