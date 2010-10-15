@@ -425,7 +425,7 @@ package com.riaspace.nativeApplicationUpdater
 					installProcess.start(info);
 				}
 				
-				NativeApplication.nativeApplication.exit();
+				setTimeout(NativeApplication.nativeApplication.exit, 200);
 			}
 		}
 		
