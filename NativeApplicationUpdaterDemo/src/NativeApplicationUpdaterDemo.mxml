@@ -63,7 +63,6 @@
 
 			private function updater_downloadCompleteHandler(event:UpdateEvent):void
 			{
-//				setTimeout(updater.installUpdate, 10);
 				updater.installUpdate();
 			}
 
