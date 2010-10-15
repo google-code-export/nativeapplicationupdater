@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					   xmlns:s="library://ns.adobe.com/flex/spark" 
+					   xmlns:mx="library://ns.adobe.com/flex/mx"
+					   xmlns:updater="http://updater.riaspace.com/">
+
+	<fx:Script>
+		<![CDATA[
+			import air.update.events.DownloadErrorEvent;
+			import air.update.events.StatusUpdateEvent;
+			import air.update.events.UpdateEvent;
+			
+			import mx.controls.Alert;
+			
+			[Bindable]
+			protected var downlaoding:Boolean = false;
+
+			protected function isNewerFunction(currentVersion:String, updateVersion:String):Boolean
+			{
+				return true;
+			}
+
+			protected function updater_errorHandler(event:ErrorEvent):void
+			{
+				Alert.show(event.text);
+			}
+
+			protected function btnCheckNow_clickHandler(event:MouseEvent):void
+			{
+				updater.initialize();
+			}
+
+			protected function updater_initializedHandler(event:UpdateEvent):void
+			{
+				updater.checkNow();
+			}
+
+			protected function updater_updateStatusHandler(event:StatusUpdateEvent):void
+			{
+				if (event.available)
+				{
+					event.preventDefault();
+					currentState = "updaterView";
+				}
+				else
+				{
+					Alert.show("Your application is up to date!");
+				}
+			}
+
+			protected function btnYes_clickHandler(event:MouseEvent):void
+			{
+				downlaoding = true;
+				updater.addEventListener(DownloadErrorEvent.DOWNLOAD_ERROR, updater_downloadErrorHandler);
+				updater.addEventListener(UpdateEvent.DOWNLOAD_COMPLETE, updater_downloadCompleteHandler);
+				updater.downloadUpdate();
+			}
+
+			protected function btnNo_clickHandler(event:MouseEvent):void
+			{
+				currentState = "mainView";
+			}
+
+			private function updater_downloadCompleteHandler(event:UpdateEvent):void
+			{
+//				setTimeout(updater.installUpdate, 10);
+				updater.installUpdate();
+			}
+
+			private function updater_downloadErrorHandler(event:DownloadErrorEvent):void
+			{
+				Alert.show("Error downloading update file, try again later.");
+			}
+
+		]]>
+	</fx:Script>
+	
+	<s:states>
+		<s:State name="mainView"/>
+		<s:State name="updaterView"/>
+	</s:states>
+
+	<fx:Declarations>
+		<updater:NativeApplicationUpdater id="updater" 
+					updateURL="http://riaspace.com/native-application-updater/update-1.1.xml" 
+					isNewerVersionFunction="{isNewerFunction}"
+					
+					initialized="updater_initializedHandler(event)"
+					updateStatus="updater_updateStatusHandler(event)"
+					
+					error="updater_errorHandler(event)"
+					downloadError="updater_errorHandler(event)"
+					updateError="updater_errorHandler(event)"
+					/>
+	</fx:Declarations>
+	
+	<s:Button id="btnCheckNow" label="Check for updates" includeIn="mainView" horizontalCenter="0" verticalCenter="0" 
+			  click="btnCheckNow_clickHandler(event)"/>
+	
+	<s:HGroup verticalCenter="0" includeIn="updaterView" horizontalCenter="0" verticalAlign="top">
+		<s:BitmapImage source="@Embed(source='/assets/icon128.png')" />
+		<s:VGroup width="100%" horizontalAlign="center">
+			<s:Label text="New version ({updater.updateVersion}) is available." />
+			<s:Label text="Do you want to download it and install?" />
+			<mx:ProgressBar id="prgBar" source="{updater}" label="Downloading %3%" visible="{downlaoding}" />
+			<s:HGroup>
+				<s:Button id="btnYes" label="Yes" click="btnYes_clickHandler(event)" />
+				<s:Button id="btnNo" label="No" click="btnNo_clickHandler(event)" />
+			</s:HGroup>
+		</s:VGroup>
+	</s:HGroup>
+	
+</s:WindowedApplication>

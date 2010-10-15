@@ -182,7 +182,8 @@ package com.riaspace.nativeApplicationUpdater
 						function(event:UpdateEvent):void
 						{
 							if (!event.isDefaultPrevented())
-								setTimeout(installUpdate, 10); // This is a hack for windows platform as download complete event is fired before file is released
+								installUpdate();
+//								setTimeout(installUpdate, 500); // This is a hack for windows platform as download complete event is fired before file is released
 						});
 					
 					checkForUpdate();
@@ -194,6 +195,9 @@ package com.riaspace.nativeApplicationUpdater
 		 * ------------------------------------ CHECK FOR UPDATE SECTION -------------------------------------
 		 */
 
+		/**
+		 * Checks for update, this can be runned only in situation when UpdateEvent.CHECK_FOR_UPDATE was cancelled.
+		 */ 
 		public function checkForUpdate():void
 		{
 			if (currentState == BEFORE_CHECKING)
@@ -265,6 +269,9 @@ package com.riaspace.nativeApplicationUpdater
 		 * ------------------------------------ DOWNLOAD UPDATE SECTION -------------------------------------
 		 */
 
+		/**
+		 * Starts downloading update.
+		 */
 		public function downloadUpdate():void
 		{
 			if (currentState == AVAILABLE)
@@ -273,6 +280,7 @@ package com.riaspace.nativeApplicationUpdater
 				
 				fileStream = new FileStream();
 				fileStream.addEventListener(IOErrorEvent.IO_ERROR, urlStream_ioErrorHandler);
+				fileStream.addEventListener(Event.CLOSE, urlStream_closeHandler);
 				fileStream.openAsync(downloadedFile, FileMode.WRITE);
 				
 				urlStream = new URLStream();
@@ -292,11 +300,17 @@ package com.riaspace.nativeApplicationUpdater
 				}
 			}
 		}
-		
+
 		protected function urlStream_openHandler(event:Event):void
 		{
 			currentState = NativeApplicationUpdater.DOWNLOADING;
 			dispatchEvent(new UpdateEvent(UpdateEvent.DOWNLOAD_START));
+		}
+		
+		protected function urlStream_closeHandler(event:Event):void
+		{
+			currentState = NativeApplicationUpdater.DOWNLOADED;
+			dispatchEvent(new UpdateEvent(UpdateEvent.DOWNLOAD_COMPLETE, false, true));
 		}
 		
 		protected function urlStream_progressHandler(event:ProgressEvent):void
@@ -315,9 +329,6 @@ package com.riaspace.nativeApplicationUpdater
 		{
 			urlStream.close();
 			fileStream.close();
-			
-			currentState = NativeApplicationUpdater.DOWNLOADED;
-			dispatchEvent(new UpdateEvent(UpdateEvent.DOWNLOAD_COMPLETE, false, true));
 		}
 
 		protected function urlStream_ioErrorHandler(event:IOErrorEvent):void
@@ -330,6 +341,9 @@ package com.riaspace.nativeApplicationUpdater
 		 * ------------------------------------ INSTALL UPDATE SECTION -------------------------------------
 		 */
 		
+		/**
+		 * Installs downloaded update
+		 */ 
 		public function installUpdate():void
 		{
 			if (currentState == DOWNLOADED)
