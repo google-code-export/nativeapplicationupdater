@@ -17,6 +17,9 @@
 
 			protected function isNewerFunction(currentVersion:String, updateVersion:String):Boolean
 			{
+				// Example of custom isNewerFunction function, it can be omitted if one doesn't want
+				// to implement it's own version comparison logic. Be default it does simple string
+				// comparison.
 				return true;
 			}
 
@@ -27,11 +30,13 @@
 
 			protected function btnCheckNow_clickHandler(event:MouseEvent):void
 			{
+				// First initialize NativeApplicationUpdater
 				updater.initialize();
 			}
 
 			protected function updater_initializedHandler(event:UpdateEvent):void
 			{
+				// When NativeApplicationUpdater is initialized you can call checkNow function
 				updater.checkNow();
 			}
 
@@ -39,6 +44,9 @@
 			{
 				if (event.available)
 				{
+					// In case update is available prevent default behavior of checkNow() function 
+					// and switch to the view that gives the user ability to decide if he wants to
+					// install new version of the application.
 					event.preventDefault();
 					currentState = "updaterView";
 				}
@@ -50,6 +58,9 @@
 
 			protected function btnYes_clickHandler(event:MouseEvent):void
 			{
+				
+				// In case user wants to download and install update display download progress bar
+				// and invoke downloadUpdate() function.
 				downlaoding = true;
 				updater.addEventListener(DownloadErrorEvent.DOWNLOAD_ERROR, updater_downloadErrorHandler);
 				updater.addEventListener(UpdateEvent.DOWNLOAD_COMPLETE, updater_downloadCompleteHandler);
@@ -63,6 +74,7 @@
 
 			private function updater_downloadCompleteHandler(event:UpdateEvent):void
 			{
+				// When update is downloaded install it.
 				updater.installUpdate();
 			}
 
@@ -93,7 +105,8 @@
 					/>
 	</fx:Declarations>
 	
-	<s:Button id="btnCheckNow" label="Check for updates" includeIn="mainView" horizontalCenter="0" verticalCenter="0" 
+	<s:Button id="btnCheckNow" label="Check for updates" includeIn="mainView" 
+			  horizontalCenter="0" verticalCenter="0" 
 			  click="btnCheckNow_clickHandler(event)"/>
 	
 	<s:HGroup verticalCenter="0" includeIn="updaterView" horizontalCenter="0" verticalAlign="top">
