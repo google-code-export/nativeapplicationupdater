@@ -116,8 +116,6 @@ package com.riaspace.nativeApplicationUpdater
 		
 		protected var fileStream:FileStream;
 		
-		protected var currentPosition:uint = 0;
-		
 		public function NativeApplicationUpdater()
 		{
 		}
@@ -316,12 +314,8 @@ package com.riaspace.nativeApplicationUpdater
 		protected function urlStream_progressHandler(event:ProgressEvent):void
 		{
 			var bytes:ByteArray = new ByteArray();
-			var offset:uint = currentPosition;
-			currentPosition += urlStream.bytesAvailable;
-			
-			urlStream.readBytes(bytes, offset);
-			fileStream.writeBytes(bytes, offset);
-			
+			urlStream.readBytes(bytes);
+			fileStream.writeBytes(bytes);
 			dispatchEvent(event.clone());
 		}
 		
