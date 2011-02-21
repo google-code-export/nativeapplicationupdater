@@ -52,6 +52,17 @@ package com.riaspace.nativeApplicationUpdater.utils
 
 		private function hdiutilProcess_outputHandler(event:ProgressEvent):void
 		{
+			// Storing current XML settings
+			var xmlSettings:Object = XML.settings();
+			// Setting required custom XML settings
+			XML.setSettings(
+				{
+					ignoreWhitespace : true,
+					ignoreProcessingInstructions : true,
+					ignoreComments : true,
+					prettyPrinting : false
+				});
+				
 			var plist:XML = new XML(hdiutilProcess.standardOutput.readUTFBytes(event.bytesLoaded));
 			var dicts:XMLList = plist.dict.array.dict;
 
@@ -63,11 +74,18 @@ package com.riaspace.nativeApplicationUpdater.utils
 					if (element.name() == "key" && element.text() == "mount-point")
 					{
 						mountPoint = dict.child(element.childIndex() + 1);
-						dispatchEvent(new Event(Event.COMPLETE));
 						break;
 					}
 				}
 			}
+
+			// Reverting back original XML settings
+			XML.setSettings(xmlSettings);
+			
+			if (mountPoint)
+				dispatchEvent(new Event(Event.COMPLETE));
+			else
+				dispatchEvent(new ErrorEvent(ErrorEvent.ERROR, false, false, "Couldn't find mount point!"));
 		}
 
 		private function hdiutilProcess_errorHandler(event:IOErrorEvent):void

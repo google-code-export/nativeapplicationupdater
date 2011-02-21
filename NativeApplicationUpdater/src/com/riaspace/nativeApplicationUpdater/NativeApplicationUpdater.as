@@ -13,6 +13,7 @@ package com.riaspace.nativeApplicationUpdater
 	import flash.events.ErrorEvent;
 	import flash.events.Event;
 	import flash.events.EventDispatcher;
+	import flash.events.HTTPStatusEvent;
 	import flash.events.IOErrorEvent;
 	import flash.events.ProgressEvent;
 	import flash.filesystem.File;
@@ -181,7 +182,6 @@ package com.riaspace.nativeApplicationUpdater
 						{
 							if (!event.isDefaultPrevented())
 								installUpdate();
-//								setTimeout(installUpdate, 500); // This is a hack for windows platform as download complete event is fired before file is released
 						});
 					
 					checkForUpdate();
@@ -221,6 +221,8 @@ package com.riaspace.nativeApplicationUpdater
 		protected function updateDescriptorLoader_completeHandler(event:Event):void
 		{
 			updateDescriptorLoader.removeEventListener(Event.COMPLETE, updateDescriptorLoader_completeHandler);
+			updateDescriptorLoader.removeEventListener(IOErrorEvent.IO_ERROR, updateDescriptorLoader_ioErrorHandler);
+			updateDescriptorLoader.close();
 			
 			updateDescriptor = new XML(updateDescriptorLoader.data);
 			
@@ -256,7 +258,9 @@ package com.riaspace.nativeApplicationUpdater
 		
 		protected function updateDescriptorLoader_ioErrorHandler(event:IOErrorEvent):void
 		{
-			updateDescriptorLoader.removeEventListener(IOErrorEvent.IO_ERROR, updateDescriptorLoader_ioErrorHandler); 
+			updateDescriptorLoader.removeEventListener(Event.COMPLETE, updateDescriptorLoader_completeHandler);
+			updateDescriptorLoader.removeEventListener(IOErrorEvent.IO_ERROR, updateDescriptorLoader_ioErrorHandler);
+			updateDescriptorLoader.close();
 			
 			dispatchEvent(new StatusUpdateErrorEvent(StatusUpdateErrorEvent.UPDATE_ERROR, false, false, 
 				"IO Error downloading update descriptor file: " + event.text,
@@ -274,11 +278,12 @@ package com.riaspace.nativeApplicationUpdater
 		{
 			if (currentState == AVAILABLE)
 			{
-				downloadedFile = File.createTempFile();
+				var fileName:String = updatePackageURL.substr(updatePackageURL.lastIndexOf("/") + 1);
+				downloadedFile = File.createTempDirectory().resolvePath(fileName);
 				
 				fileStream = new FileStream();
 				fileStream.addEventListener(IOErrorEvent.IO_ERROR, urlStream_ioErrorHandler);
-				fileStream.addEventListener(Event.CLOSE, urlStream_closeHandler);
+				fileStream.addEventListener(Event.CLOSE, fileStream_closeHandler);
 				fileStream.openAsync(downloadedFile, FileMode.WRITE);
 				
 				urlStream = new URLStream();
@@ -305,8 +310,11 @@ package com.riaspace.nativeApplicationUpdater
 			dispatchEvent(new UpdateEvent(UpdateEvent.DOWNLOAD_START));
 		}
 		
-		protected function urlStream_closeHandler(event:Event):void
+		protected function fileStream_closeHandler(event:Event):void
 		{
+			fileStream.removeEventListener(Event.CLOSE, fileStream_closeHandler);
+			fileStream.removeEventListener(IOErrorEvent.IO_ERROR, urlStream_ioErrorHandler);
+			
 			currentState = NativeApplicationUpdater.DOWNLOADED;
 			dispatchEvent(new UpdateEvent(UpdateEvent.DOWNLOAD_COMPLETE, false, true));
 		}
@@ -316,17 +324,32 @@ package com.riaspace.nativeApplicationUpdater
 			var bytes:ByteArray = new ByteArray();
 			urlStream.readBytes(bytes);
 			fileStream.writeBytes(bytes);
-			dispatchEvent(event.clone());
+			dispatchEvent(event);
 		}
 		
 		protected function urlStream_completeHandler(event:Event):void
 		{
+			urlStream.removeEventListener(Event.OPEN, urlStream_openHandler);
+			urlStream.removeEventListener(ProgressEvent.PROGRESS, urlStream_progressHandler);
+			urlStream.removeEventListener(Event.COMPLETE, urlStream_completeHandler);
+			urlStream.removeEventListener(IOErrorEvent.IO_ERROR, urlStream_ioErrorHandler);
 			urlStream.close();
+
 			fileStream.close();
 		}
 
 		protected function urlStream_ioErrorHandler(event:IOErrorEvent):void
 		{
+			fileStream.removeEventListener(Event.CLOSE, fileStream_closeHandler);
+			fileStream.removeEventListener(IOErrorEvent.IO_ERROR, urlStream_ioErrorHandler);
+			fileStream.close();
+
+			urlStream.removeEventListener(Event.OPEN, urlStream_openHandler);
+			urlStream.removeEventListener(ProgressEvent.PROGRESS, urlStream_progressHandler);
+			urlStream.removeEventListener(Event.COMPLETE, urlStream_completeHandler);
+			urlStream.removeEventListener(IOErrorEvent.IO_ERROR, urlStream_ioErrorHandler);
+			urlStream.close();
+			
 			dispatchEvent(new DownloadErrorEvent(DownloadErrorEvent.DOWNLOAD_ERROR, false, false, 
 				"Error downloading update file: " + event.text, UpdaterErrorCodes.ERROR_9005, event.errorID));
 		}
@@ -412,8 +435,22 @@ package com.riaspace.nativeApplicationUpdater
 				}
 				else
 				{
+					// This is Windows update
 					var info:NativeProcessStartupInfo = new NativeProcessStartupInfo();
-					info.executable = updateFile;
+					
+					var cmdExe:File = new File("C:\\Windows\\System32\\cmd.exe");
+					if (cmdExe.exists)
+					{
+						var args:Vector.<String> = new Vector.<String>();
+						args.push("/c", updateFile.nativePath);
+
+						info.executable = cmdExe;
+						info.arguments = args;
+					}
+					else
+					{
+						info.executable = updateFile;
+					}
 					
 					var installProcess:NativeProcess = new NativeProcess();
 					installProcess.start(info);
