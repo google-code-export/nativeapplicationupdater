@@ -38,20 +38,22 @@ package com.riaspace.nativeApplicationUpdater.utils
 			
 			var args:Vector.<String> = new Vector.<String>();
 			args.push("attach", "-plist", dmg.nativePath);
-			
 			info.arguments = args;
 			
 			hdiutilProcess = new NativeProcess();
 			hdiutilProcess.addEventListener(IOErrorEvent.STANDARD_ERROR_IO_ERROR, hdiutilProcess_errorHandler);
 			hdiutilProcess.addEventListener(IOErrorEvent.STANDARD_OUTPUT_IO_ERROR, hdiutilProcess_errorHandler);
-			
 			hdiutilProcess.addEventListener(ProgressEvent.STANDARD_OUTPUT_DATA, hdiutilProcess_outputHandler);
-			
 			hdiutilProcess.start(info);
 		}
 
 		private function hdiutilProcess_outputHandler(event:ProgressEvent):void
 		{
+			hdiutilProcess.removeEventListener(IOErrorEvent.STANDARD_ERROR_IO_ERROR, hdiutilProcess_errorHandler);
+			hdiutilProcess.removeEventListener(IOErrorEvent.STANDARD_OUTPUT_IO_ERROR, hdiutilProcess_errorHandler);
+			hdiutilProcess.removeEventListener(ProgressEvent.STANDARD_OUTPUT_DATA, hdiutilProcess_outputHandler);
+			hdiutilProcess.exit();
+			
 			// Storing current XML settings
 			var xmlSettings:Object = XML.settings();
 			// Setting required custom XML settings

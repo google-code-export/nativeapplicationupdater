@@ -13,7 +13,6 @@ package com.riaspace.nativeApplicationUpdater
 	import flash.events.ErrorEvent;
 	import flash.events.Event;
 	import flash.events.EventDispatcher;
-	import flash.events.HTTPStatusEvent;
 	import flash.events.IOErrorEvent;
 	import flash.events.ProgressEvent;
 	import flash.filesystem.File;
@@ -435,11 +434,9 @@ package com.riaspace.nativeApplicationUpdater
 				}
 				else
 				{
-					// This is Windows update
 					var info:NativeProcessStartupInfo = new NativeProcessStartupInfo();
-					
-					var cmdExe:File = new File("C:\\Windows\\System32\\cmd.exe");
-					if (cmdExe.exists)
+					var cmdExe:File = (os.indexOf("win") > -1) ? new File("C:\\Windows\\System32\\cmd.exe") : null;
+					if (cmdExe && cmdExe.exists)
 					{
 						var args:Vector.<String> = new Vector.<String>();
 						args.push("/c", updateFile.nativePath);
